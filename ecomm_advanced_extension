@@ -1,0 +1,199 @@
+// ===== Product.js =====
+class Product {
+  #stockCount = 0;
+  #isOnSale = false;
+  constructor(name, price, description) {
+    this.name = name;
+    this.price = price;
+    this.description = description;
+  }
+
+  get name() { return this._name; }
+  set name(val) { this._name = val; }
+
+  get price() { return this._price; }
+  set price(val) {
+    if (val <= 0) throw new Error("Price must be positive.");
+    this._price = val;
+  }
+
+  get description() { return this._description; }
+  set description(val) { this._description = val; }
+
+  get isOnSale() { return this.#isOnSale; }
+  set isOnSale(val) { this.#isOnSale = !!val; }
+
+  updateStock(count) { this.#stockCount = count; }
+  getStock() { return this.#stockCount; }
+
+  applyDiscount(percent) {
+    return this.price * (1 - percent / 100);
+  }
+
+  static compare(a, b) {
+    return a.price - b.price;
+  }
+}
+
+module.exports = Product;
+
+// ===== TV.js =====
+const Product = require('./Product');
+class TV extends Product {
+  static #salePrice = 1000;
+
+  constructor(name, price, description, screenSize) {
+    super(name, price, description);
+    this.screenSize = screenSize;
+  }
+
+  static getSalePrice() {
+    return this.#salePrice;
+  }
+}
+
+module.exports = TV;
+
+// ===== Shirt.js =====
+const Product = require('./Product');
+class Shirt extends Product {
+  static #salePrice = 19.99;
+
+  constructor(name, price, description, size) {
+    super(name, price, description);
+    this.size = size;
+  }
+
+  static getSalePrice() {
+    return this.#salePrice;
+  }
+}
+
+module.exports = Shirt;
+
+// ===== Book.js =====
+const Product = require('./Product');
+class Book extends Product {
+  static #salePrice = 10;
+
+  constructor(name, price, description, author) {
+    super(name, price, description);
+    this.author = author;
+  }
+
+  static getSalePrice() {
+    return this.#salePrice;
+  }
+}
+
+module.exports = Book;
+
+// ===== Cart.js =====
+class Cart {
+  constructor() {
+    this.items = []; // { product: Product, quantity: number }
+    this.discountCodes = [
+      { code: "Hot32", isApplied: false, discountPercent: 15 }
+    ];
+  }
+
+  addItem(product, quantity) {
+    if (!(product instanceof require('./Product')))
+      throw new Error("Item must be a Product");
+    if (quantity <= 0) throw new Error("Quantity must be greater than 0");
+
+    const existing = this.items.find(i => i.product.name === product.name);
+    if (existing) {
+      existing.quantity += quantity;
+    } else {
+      this.items.push({ product, quantity });
+    }
+  }
+
+  removeItem(productName) {
+    this.items = this.items.filter(i => i.product.name !== productName);
+  }
+
+  updateQuantity(product, quantity) {
+    const item = this.items.find(i => i.product.name === product.name);
+    if (item) item.quantity = quantity;
+  }
+
+  sort() {
+    this.items.sort((a, b) => require('./Product').compare(a.product, b.product));
+  }
+
+  applyDiscountCode(code) {
+    const discount = this.discountCodes.find(d => d.code === code);
+    if (!discount) throw new Error("Invalid discount code");
+    discount.isApplied = true;
+  }
+
+  calculateTotal() {
+    let total = 0;
+    const discount = this.discountCodes.find(d => d.isApplied);
+
+    for (const { product, quantity } of this.items) {
+      let basePrice = product.price;
+      if (product.isOnSale && product.constructor.getSalePrice) {
+        basePrice = product.constructor.getSalePrice();
+      }
+      if (discount) {
+        basePrice = product.applyDiscount(discount.discountPercent);
+      }
+      total += basePrice * quantity;
+    }
+    return total.toFixed(2);
+  }
+
+  displayCart() {
+    for (const { product, quantity } of this.items) {
+      console.log(`${product.name} x${quantity} - $${product.price}`);
+    }
+    console.log(`Total: $${this.calculateTotal()}`);
+  }
+}
+
+module.exports = Cart;
+
+// ===== test.js =====
+const Product = require('./Product');
+const TV = require('./TV');
+const Shirt = require('./Shirt');
+const Book = require('./Book');
+const Cart = require('./Cart');
+
+const cart = new Cart();
+const tv = new TV("Super HD TV", 1500, "75-inch 4K TV", 75);
+const tshirt = new Shirt("Casual Shirt", 29.99, "Cotton shirt", 'L');
+const book = new Book("1984", 17, "A great book", "George Orwell");
+
+cart.addItem(tv, 3);
+cart.addItem(tshirt, 1);
+console.log("Cart after adding 3 TVs and 1 T-shirt:");
+cart.displayCart();
+
+cart.sort();
+console.log("\nCart after sorting:");
+cart.displayCart();
+
+try {
+  cart.applyDiscountCode("Hot32");
+} catch (e) {
+  console.error(e.message);
+}
+console.log("\nCart after applying discount code:");
+cart.displayCart();
+
+book.isOnSale = true;
+cart.addItem(book, 4);
+console.log("\nCart after adding 4 books on sale:");
+cart.displayCart();
+
+cart.updateQuantity(tv, 1);
+console.log("\nCart after removing 2 TVs:");
+cart.displayCart();
+
+cart.sort();
+console.log("\nCart after sorting again:");
+cart.displayCart();

@@ -1,0 +1,264 @@
+// JS Advanced Lab – Boris Tadic
+// Run using: node js-advanced.js
+
+/* ----------------------------------
+   Exercise 1 – makeCounter Decorator
+---------------------------------- */
+// a) Original + Independent Counters
+function makeCounter(startFrom = 0, incrementBy = 1) {
+    let currentCount = startFrom;
+    return function () {
+        currentCount += incrementBy;
+        console.log(currentCount);
+        return currentCount;
+    };
+}
+
+let counter1 = makeCounter();
+let counter2 = makeCounter(10, 5);
+
+counter1(); // 1
+counter1(); // 2
+counter2(); // 15 (starts from 10, +5)
+
+/* ----------------------------------
+   Exercise 2 – delayMsg & setTimeout
+---------------------------------- */
+const delayMsg = (msg) =>
+    console.log(`This message will be printed after a delay: ${msg}`);
+
+setTimeout(delayMsg, 100, '#1: Delayed by 100ms');
+setTimeout(delayMsg, 20, '#2: Delayed by 20ms');
+setTimeout(delayMsg, 0, '#3: Delayed by 0ms');
+delayMsg('#4: Not delayed at all');
+
+let timeout5 = setTimeout(delayMsg, 12000, '#5: Delayed by 12s');
+clearTimeout(timeout5); // prevent execution
+
+/* ----------------------------------
+   Exercise 3 – Debounce Decorator
+---------------------------------- */
+function debounce(func, ms = 1000) {
+    let timer;
+    return function (...args) {
+        clearTimeout(timer);
+        timer = setTimeout(() => func(...args), ms);
+    };
+}
+
+const printMe = debounce((msg) => {
+    console.log(`printing debounced message: ${msg}`);
+}, 1000);
+
+setTimeout(() => printMe("First"), 100);
+setTimeout(() => printMe("Second"), 200);
+setTimeout(() => printMe("Third"), 300); // Only this prints after 1s
+
+/* ----------------------------------
+   Exercise 4 – Fibonacci with setInterval/setTimeout
+---------------------------------- */
+// a) setInterval version
+function printFibonacci(limit = 10) {
+    let a = 0, b = 1, count = 0;
+    const interval = setInterval(() => {
+        if (count++ >= limit) return clearInterval(interval);
+        console.log(b);
+        [a, b] = [b, a + b];
+    }, 1000);
+}
+printFibonacci(5);
+
+/* ----------------------------------
+   Exercise 5 – setTimeout + this context
+---------------------------------- */
+let car = {
+    make: "Porsche",
+    model: '911',
+    year: 1964,
+    description() {
+        console.log(`This car is a ${this.make} ${this.model} from ${this.year}`);
+    }
+};
+
+car.description(); // works
+
+setTimeout(() => car.description(), 200); // a) works via wrapper
+
+let newCar = { ...car, year: 2020 };
+newCar.description(); // b)
+
+const boundDesc = car.description.bind(car);
+setTimeout(boundDesc, 500); // d)
+
+let updatedCar = { ...car, model: 'Cayman' };
+boundDesc(); // still logs 911 due to bind capturing context
+
+/* ----------------------------------
+   Exercise 6 – Function.prototype.delay
+---------------------------------- */
+Function.prototype.delay = function (ms) {
+    let func = this;
+    return function (...args) {
+        setTimeout(() => func.apply(this, args), ms);
+    };
+};
+
+function multiply(a, b, c = 1, d = 1) {
+    console.log(a * b * c * d);
+}
+
+multiply.delay(500)(2, 3);      // 6
+multiply.delay(1000)(2, 3, 2);  // 12
+multiply.delay(1500)(2, 3, 2, 2); // 24
+
+/* ----------------------------------
+   Exercise 7 – DigitalClock Inheritance
+---------------------------------- */
+class DigitalClock {
+    constructor(prefix) {
+        this.prefix = prefix;
+    }
+    display() {
+        let [h, m, s] = [new Date().getHours(), new Date().getMinutes(), new Date().getSeconds()];
+        if (h < 10) h = '0' + h;
+        if (m < 10) m = '0' + m;
+        if (s < 10) s = '0' + s;
+        console.log(`${this.prefix} ${h}:${m}:${s}`);
+    }
+    stop() {
+        clearInterval(this.timer);
+    }
+    start() {
+        this.display();
+        this.timer = setInterval(() => this.display(), 1000);
+    }
+}
+
+class PrecisionClock extends DigitalClock {
+    constructor(prefix, precision = 1000) {
+        super(prefix);
+        this.precision = precision;
+    }
+    start() {
+        this.display();
+        this.timer = setInterval(() => this.display(), this.precision);
+    }
+}
+
+class AlarmClock extends DigitalClock {
+    constructor(prefix, wakeupTime = "07:00") {
+        super(prefix);
+        this.wakeupTime = wakeupTime;
+    }
+    start() {
+        this.display();
+        this.timer = setInterval(() => {
+            this.display();
+            let now = new Date();
+            let current = `${now.getHours()}`.padStart(2, '0') + ':' + `${now.getMinutes()}`.padStart(2, '0');
+            if (current === this.wakeupTime) {
+                console.log("Wake Up!");
+                this.stop();
+            }
+        }, 1000);
+    }
+}
+
+/* ----------------------------------
+   Exercise 8 – Argument Validation Decorator
+---------------------------------- */
+function validateStringArg(fn) {
+    return function (...args) {
+        if (!args.every(arg => typeof arg === 'string')) {
+            throw new Error("All arguments must be strings.");
+        }
+        return fn(...args);
+    };
+}
+
+function orderItems(...items) {
+    return `Order placed for: ${items.join(', ')}`;
+}
+
+const validatedOrderItem = validateStringArg(orderItems);
+
+try {
+    console.log(validatedOrderItem("iPhone", "Laptop"));
+    console.log(validatedOrderItem("AirPods", 123)); // should throw
+} catch (e) {
+    console.error(e.message);
+}
+
+/* ----------------------------------
+   Exercise 9 – Promise-based Delay
+---------------------------------- */
+function randomDelay() {
+    const delay = Math.floor(Math.random() * 20 + 1) * 1000;
+    return new Promise((resolve, reject) => {
+        setTimeout(() => {
+            if ((delay / 1000) % 2 === 0) {
+                resolve(delay);
+            } else {
+                reject(delay);
+            }
+        }, delay);
+    });
+}
+
+randomDelay()
+    .then(d => console.log(`Success after ${d / 1000}s delay`))
+    .catch(d => console.error(`Failed after ${d / 1000}s delay`));
+
+/* ----------------------------------
+   Exercise 10 – Async Fetch + Extension
+---------------------------------- */
+// Requires Node setup:
+// npm init -y
+// npm install node-fetch
+// npm pkg set type=module
+import fetch from 'node-fetch';
+globalThis.fetch = fetch;
+
+function fetchURLData(url) {
+    return fetch(url)
+        .then(response => {
+            if (response.status === 200) return response.json();
+            throw new Error(`Request failed with status ${response.status}`);
+        });
+}
+
+async function fetchURLDataAsync(url) {
+    try {
+        const response = await fetch(url);
+        if (response.status !== 200)
+            throw new Error(`Request failed with status ${response.status}`);
+        return await response.json();
+    } catch (err) {
+        throw err;
+    }
+}
+
+// Test
+fetchURLData('https://jsonplaceholder.typicode.com/todos/1')
+    .then(data => console.log(data))
+    .catch(err => console.error(err.message));
+
+fetchURLDataAsync('https://jsonplaceholder.typicode.com/todos/2')
+    .then(data => console.log(data))
+    .catch(err => console.error(err.message));
+
+// Extension – multiple URLs
+async function fetchAll(urls) {
+    const promises = urls.map(url => fetchURLDataAsync(url));
+    try {
+        const results = await Promise.all(promises);
+        console.log(results);
+    } catch (err) {
+        console.error('One or more requests failed:', err.message);
+    }
+}
+
+fetchAll([
+    'https://jsonplaceholder.typicode.com/todos/3',
+    'https://jsonplaceholder.typicode.com/todos/4'
+]);
